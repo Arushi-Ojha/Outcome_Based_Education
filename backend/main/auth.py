@@ -78,3 +78,8 @@ def get_current_faculty(current_user: UserInfo = Depends(get_current_active_user
     if current_user.role != Role.FACULTY:
         raise HTTPException(status_code=403, detail="Not enough privileges, requires FACULTY")
     return current_user
+
+def get_current_program_head(current_user: UserInfo = Depends(get_current_active_user)):
+    if current_user.role != Role.PROGRAM_HEAD:
+        raise HTTPException(status_code=403, detail="Not enough privileges, requires PROGRAM_HEAD")
+    return current_user

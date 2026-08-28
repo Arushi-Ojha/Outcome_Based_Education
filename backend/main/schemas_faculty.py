@@ -11,7 +11,7 @@ class FacultyAssignmentRequest(BaseModel):
 class StudentData(BaseModel):
     usn: str
     name: str
-    academic_course_id: int
+    program_id: int
     semester: int
     department_id: int
 
@@ -32,3 +32,30 @@ class StudentMarks(BaseModel):
 
 class BulkMarksUploadRequest(BaseModel):
     student_marks: List[StudentMarks]
+
+# Faculty Management Schemas
+class FacultyUploadItem(BaseModel):
+    employee_id: str
+    name: str
+    speciality: str
+    email: EmailStr
+
+class FacultyUploadRequest(BaseModel):
+    academic_year: str
+    semester: int
+    faculty_list: List[FacultyUploadItem]
+
+class FacultyCourseResponse(BaseModel):
+    employee_id: Optional[str]
+    name: str
+    speciality: Optional[str]
+    email: EmailStr
+    total_courses_assigned: int
+
+class FacultyDropdownResponse(BaseModel):
+    id: int # Faculty.id
+    user_id: int
+    employee_id: Optional[str]
+    name: str
+    email: str
+    speciality: Optional[str]

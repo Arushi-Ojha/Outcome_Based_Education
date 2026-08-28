@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from main.database import engine
 from main import models
-from main.routers import auth_router, router_hod, coordinator_router, faculty_router, analytics_router
+from main.routers import auth_router, router_hod, coordinator_router, faculty_router, analytics_router, admin_router, program_head_router
 
 # Initialize Database tables
 # SQLAlchemy DeclarativeBase handles this safely with TiDB in sequential queries
@@ -15,6 +15,8 @@ app.include_router(router_hod.router)
 app.include_router(coordinator_router.router)
 app.include_router(faculty_router.router)
 app.include_router(analytics_router.router)
+app.include_router(admin_router.router)
+app.include_router(program_head_router.router)
 
 @app.get("/", tags=["Root"])
 def read_root():

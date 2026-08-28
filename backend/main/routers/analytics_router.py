@@ -7,15 +7,15 @@ from main import models, auth
 
 router = APIRouter(prefix="/analytics", tags=["Analytics Domain"])
 
-@router.get("/co-attainment/{subject_id}")
-def get_co_attainment(subject_id: int, db: Session = Depends(get_db), current_user: models.UserInfo = Depends(auth.get_current_active_user)):
+@router.get("/co-attainment/{course_id}")
+def get_co_attainment(course_id: int, db: Session = Depends(get_db), current_user: models.UserInfo = Depends(auth.get_current_active_user)):
     """Calculate CO attainment per course (percentage of students crossing the threshold)"""
     
     query = f"""
     SELECT iam.score, a.max_marks, a.threshold_percentage, iam.co_id
     FROM IA_Marks iam
     JOIN Assessments a ON iam.assessment_id = a.id
-    WHERE a.subject_id = {subject_id}
+    WHERE a.course_id = {course_id}
     """
     
     # Load into Pandas dataframe for vectorized calculation
@@ -30,15 +30,15 @@ def get_co_attainment(subject_id: int, db: Session = Depends(get_db), current_us
     # Calculate % of students crossing threshold per CO
     attainment = (df.groupby('co_id')['crossed_threshold'].mean() * 100).round(2)
     
-    return {"subject_id": subject_id, "co_attainment": attainment.to_dict()}
+    return {"course_id": course_id, "co_attainment": attainment.to_dict()}
 
-@router.get("/po-attainment/{academic_course_id}")
-def get_po_attainment(academic_course_id: int, db: Session = Depends(get_db), current_user: models.UserInfo = Depends(auth.get_current_active_user)):
+@router.get("/po-attainment/{program_id}")
+def get_po_attainment(program_id: int, db: Session = Depends(get_db), current_user: models.UserInfo = Depends(auth.get_current_active_user)):
     """Calculate PO attainment per program using Pandas matrix multiplication"""
     # This requires fetching CO attainments for all courses in the program
     # and multiplying them by the CO-PO weightages.
     # Stub logic showcasing pandas structure
-    return {"academic_course_id": academic_course_id, "msg": "PO attainment matrix placeholder"}
+    return {"program_id": program_id, "msg": "PO attainment matrix placeholder"}
 
 @router.get("/ksa-dashboard/{usn}")
 def get_student_ksa(usn: str, db: Session = Depends(get_db), current_user: models.UserInfo = Depends(auth.get_current_active_user)):

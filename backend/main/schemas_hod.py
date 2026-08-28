@@ -1,70 +1,70 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from main.models import DegreeType, SubjectCategory, KSADomain, POType
+from main.models import BatchDuration, CourseCategory, KSADomain, POType
 
 # Academic Courses (formerly Programs)
-class AcademicCourseBase(BaseModel):
+class ProgramBase(BaseModel):
     name: str
-    degree_type: DegreeType
+    batch_duration: BatchDuration
     
-class AcademicCourseCreate(AcademicCourseBase):
+class ProgramCreate(ProgramBase):
     pass
 
-class AcademicCourseUpdate(BaseModel):
+class ProgramUpdate(BaseModel):
     name: Optional[str] = None
-    degree_type: Optional[DegreeType] = None
+    batch_duration: Optional[BatchDuration] = None
 
-class AcademicCourseResponse(AcademicCourseBase):
+class ProgramResponse(ProgramBase):
     id: int
     department_id: int
     class Config:
         from_attributes = True
 
 # Subjects (formerly Courses)
-class SubjectBase(BaseModel):
+class CourseBase(BaseModel):
     code: str
     name: str
     credits: int
     semester: int
 
-class SubjectCreate(SubjectBase):
+class CourseCreate(CourseBase):
     pass
 
-class SubjectResponse(SubjectBase):
+class CourseResponse(CourseBase):
     id: int
     department_id: int
     class Config:
         from_attributes = True
 
-# Elective Baskets
-class ElectiveBasketBase(BaseModel):
+# Elective Combinations
+class ElectiveCombinationBase(BaseModel):
     name: str
     required_selection_count: int
 
-class ElectiveBasketCreate(ElectiveBasketBase):
+class ElectiveCombinationCreate(ElectiveCombinationBase):
     pass
 
-class ElectiveBasketResponse(ElectiveBasketBase):
+class ElectiveCombinationResponse(ElectiveCombinationBase):
     id: int
-    academic_course_id: int
+    program_id: int
     semester_number: int
     class Config:
         from_attributes = True
 
 # Curriculum
 class CurriculumMappingCreate(BaseModel):
-    academic_course_id: int
-    subject_id: int
+    program_id: int
+    course_id: int
     semester_number: int
-    subject_category: SubjectCategory
+    course_category: CourseCategory
     is_mandatory: bool = True
-    elective_basket_id: Optional[int] = None
+    elective_combination_id: Optional[int] = None
 
 class CurriculumMappingBulkCreate(BaseModel):
     mappings: List[CurriculumMappingCreate]
 
-class BasketCourseAdd(BaseModel):
-    subject_ids: List[int]
+class CombinationCourseAdd(BaseModel):
+    course_ids: List[int]
 
 # OBE Framework (GAs, PEOs, POs, KSAs)
 class GABase(BaseModel):
@@ -125,11 +125,11 @@ class COBase(BaseModel):
     ksa_tag_id: Optional[int] = None
 
 class COCreate(COBase):
-    subject_id: int
+    course_id: int
 
 class COResponse(COBase):
     id: int
-    subject_id: int
+    course_id: int
     class Config:
         from_attributes = True
 
@@ -147,8 +147,8 @@ class COPOMappingResponse(COPOMappingBase):
         from_attributes = True
 
 class CloneCORequest(BaseModel):
-    source_subject_id: int
-    target_subject_id: int
+    source_course_id: int
+    target_course_id: int
 
 # KSA Tag Definitions
 class KSATagBase(BaseModel):
@@ -206,3 +206,15 @@ class AssessmentCOMappingResponse(AssessmentCOMappingBase):
     id: int
     class Config:
         from_attributes = True
+
+# User Creation by HOD
+class UserCreate(BaseModel):
+    name: str
+    email: str
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    role: str
+    password: str # returned once on creation

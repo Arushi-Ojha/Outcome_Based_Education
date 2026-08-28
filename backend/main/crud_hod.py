@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 from main import models, schemas, schemas_hod
+from main.auth import get_password_hash
+import secrets
+from main.email_utils import send_credentials_email
 
 # ==========================================
 # DEPARTMENT SETUP
@@ -57,19 +60,78 @@ def approve_staff_member(db: Session, user_id: int, department_id: int):
     return None
 
 # ==========================================
+# STAFF CREATION (BY HOD)
+# ==========================================
+def create_staff_user(db: Session, user_data: schemas_hod.UserCreate, department_id: int, role: models.Role):
+    # Check if email exists
+    if db.query(models.UserInfo).filter(models.UserInfo.email == user_data.email).first():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+
+    raw_password = secrets.token_urlsafe(8)
+    new_user = models.UserInfo(
+        name=user_data.name,
+        email=user_data.email,
+        password_hash=get_password_hash(raw_password),
+        role=role,
+        status=models.UserStatus.APPROVED,
+        department_id=department_id
+    )
+    db.add(new_user)
+    db.flush()
+
+    if role in [models.Role.FACULTY, models.Role.COORDINATOR]:
+        new_faculty = models.Faculty(
+            user_id=new_user.id,
+            department_id=department_id,
+            joining_date=datetime.utcnow().date()
+        )
+        db.add(new_faculty)
+
+    db.commit()
+    db.refresh(new_user)
+
+    send_credentials_email(user_data.email, role.value, raw_password)
+
+    return schemas_hod.UserResponse(
+        id=new_user.id,
+        name=new_user.name,
+        email=new_user.email,
+        role=new_user.role.value,
+        password=raw_password
+    )
+
+def reset_user_password(db: Session, email: str, department_id: int):
+    user = db.query(models.UserInfo).filter(
+        models.UserInfo.email == email,
+        models.UserInfo.department_id == department_id
+    ).first()
+    
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="User not found in your department")
+        
+    raw_password = secrets.token_urlsafe(8)
+    user.password_hash = get_password_hash(raw_password)
+    db.commit()
+    
+    send_credentials_email(user.email, user.role.value, raw_password)
+    return {"msg": f"Password reset successfully. New credentials sent to {email}"}
+
+# ==========================================
 # CURRICULUM BLUEPRINTING
 # ==========================================
-def create_academic_course(db: Session, course: schemas_hod.AcademicCourseCreate, department_id: int):
-    db_course = models.AcademicCourse(**course.model_dump(), department_id=department_id)
+def create_program(db: Session, course: schemas_hod.ProgramCreate, department_id: int):
+    db_course = models.Program(**course.model_dump(), department_id=department_id)
     db.add(db_course)
     db.commit()
     db.refresh(db_course)
     return db_course
 
-def update_academic_course(db: Session, course_id: int, course_data: schemas_hod.AcademicCourseUpdate, department_id: int):
-    db_course = db.query(models.AcademicCourse).filter(
-        models.AcademicCourse.id == course_id,
-        models.AcademicCourse.department_id == department_id
+def update_program(db: Session, course_id: int, course_data: schemas_hod.ProgramUpdate, department_id: int):
+    db_course = db.query(models.Program).filter(
+        models.Program.id == course_id,
+        models.Program.department_id == department_id
     ).first()
     if db_course:
         for key, value in course_data.model_dump(exclude_unset=True).items():
@@ -78,12 +140,12 @@ def update_academic_course(db: Session, course_id: int, course_data: schemas_hod
         db.refresh(db_course)
     return db_course
 
-def create_subject(db: Session, subject: schemas_hod.SubjectCreate, department_id: int):
-    db_subject = models.Subject(**subject.model_dump(), department_id=department_id)
-    db.add(db_subject)
+def create_course(db: Session, course: schemas_hod.CourseCreate, department_id: int):
+    db_course = models.Course(**course.model_dump(), department_id=department_id)
+    db.add(db_course)
     db.commit()
-    db.refresh(db_subject)
-    return db_subject
+    db.refresh(db_course)
+    return db_course
 
 def bulk_insert_curriculum(db: Session, mappings: schemas_hod.CurriculumMappingBulkCreate):
     db_mappings = [models.CourseCurriculum(**m.model_dump()) for m in mappings.mappings]
@@ -91,63 +153,63 @@ def bulk_insert_curriculum(db: Session, mappings: schemas_hod.CurriculumMappingB
     db.commit()
     return len(db_mappings)
 
-def create_elective_basket(db: Session, basket: schemas_hod.ElectiveBasketCreate, academic_course_id: int, sem_number: int):
-    db_basket = models.ElectiveBasket(**basket.model_dump(), academic_course_id=academic_course_id, semester_number=sem_number)
-    db.add(db_basket)
+def create_elective_combination(db: Session, combination: schemas_hod.ElectiveCombinationCreate, program_id: int, sem_number: int):
+    db_combination = models.ElectiveCombination(**combination.model_dump(), program_id=program_id, semester_number=sem_number)
+    db.add(db_combination)
     db.commit()
-    db.refresh(db_basket)
-    return db_basket
+    db.refresh(db_combination)
+    return db_combination
 
-def add_subjects_to_basket(db: Session, basket_id: int, academic_course_id: int, subject_ids: list[int]):
-    basket = db.query(models.ElectiveBasket).filter(models.ElectiveBasket.id == basket_id).first()
-    if not basket:
+def add_courses_to_combination(db: Session, combination_id: int, program_id: int, course_ids: list[int]):
+    combination = db.query(models.ElectiveCombination).filter(models.ElectiveCombination.id == combination_id).first()
+    if not combination:
         return False
     
     mappings = [
         models.CourseCurriculum(
-            academic_course_id=academic_course_id,
-            subject_id=sid,
-            semester_number=basket.semester_number,
-            subject_category=models.SubjectCategory.MAJOR, # Electives
+            program_id=program_id,
+            course_id=sid,
+            semester_number=combination.semester_number,
+            course_category=models.CourseCategory.MAJOR, # Electives
             is_mandatory=False,
-            elective_basket_id=basket_id
-        ) for sid in subject_ids
+            elective_combination_id=combination_id
+        ) for sid in course_ids
     ]
     db.add_all(mappings)
     db.commit()
     return True
 
-def get_semester_structure(db: Session, academic_course_id: int, semester_number: int):
+def get_semester_structure(db: Session, program_id: int, semester_number: int):
     # Fetch mandatory subjects
     mandatory = db.query(models.CourseCurriculum).filter(
-        models.CourseCurriculum.academic_course_id == academic_course_id,
+        models.CourseCurriculum.program_id == program_id,
         models.CourseCurriculum.semester_number == semester_number,
         models.CourseCurriculum.is_mandatory == True,
-        models.CourseCurriculum.elective_basket_id == None
+        models.CourseCurriculum.elective_combination_id == None
     ).all()
     
-    # Fetch baskets
-    baskets = db.query(models.ElectiveBasket).filter(
-        models.ElectiveBasket.academic_course_id == academic_course_id,
-        models.ElectiveBasket.semester_number == semester_number
+    # Fetch combinations
+    combinations = db.query(models.ElectiveCombination).filter(
+        models.ElectiveCombination.program_id == program_id,
+        models.ElectiveCombination.semester_number == semester_number
     ).all()
     
-    basket_data = []
-    for b in baskets:
-        # Fetch subjects for this basket
+    combination_data = []
+    for c in combinations:
+        # Fetch subjects for this combination
         subjects = db.query(models.CourseCurriculum).filter(
-            models.CourseCurriculum.elective_basket_id == b.id
+            models.CourseCurriculum.elective_combination_id == c.id
         ).all()
-        basket_data.append({
-            "basket_id": b.id,
-            "name": b.name,
-            "required_selection_count": b.required_selection_count,
-            "subjects": [c.subject_id for c in subjects]
+        combination_data.append({
+            "combination_id": c.id,
+            "name": c.name,
+            "required_selection_count": c.required_selection_count,
+            "subjects": [s.course_id for s in subjects]
         })
         
     return {
-        "mandatory_subjects": [m.subject_id for m in mandatory],
-        "elective_baskets": basket_data
+        "mandatory_subjects": [m.course_id for m in mandatory],
+        "elective_combinations": combination_data
     }
 
 # ==========================================
@@ -187,18 +249,18 @@ def create_co(db: Session, co_data: schemas_hod.COCreate):
     db.refresh(db_co)
     return db_co
 
-def get_cos_for_subject(db: Session, subject_id: int):
-    return db.query(models.CO).filter(models.CO.subject_id == subject_id).all()
+def get_cos_for_subject(db: Session, course_id: int):
+    return db.query(models.CO).filter(models.CO.course_id == course_id).all()
 
-def clone_cos(db: Session, source_subject_id: int, target_subject_id: int):
-    source_cos = db.query(models.CO).filter(models.CO.subject_id == source_subject_id).all()
+def clone_cos(db: Session, source_course_id: int, target_course_id: int):
+    source_cos = db.query(models.CO).filter(models.CO.course_id == source_course_id).all()
     if not source_cos:
         return 0
     
     cloned_cos = [
         models.CO(
             statement=co.statement,
-            subject_id=target_subject_id,
+            course_id=target_course_id,
             ksa_tag_id=co.ksa_tag_id
         ) for co in source_cos
     ]
@@ -212,8 +274,8 @@ def bulk_map_co_po(db: Session, mapping_data: schemas_hod.COPOMappingBulkCreate)
     db.commit()
     return len(mappings)
 
-def get_co_po_mappings(db: Session, subject_id: int):
-    return db.query(models.COPOMapping).join(models.CO).filter(models.CO.subject_id == subject_id).all()
+def get_co_po_mappings(db: Session, course_id: int):
+    return db.query(models.COPOMapping).join(models.CO).filter(models.CO.course_id == course_id).all()
 
 def bulk_map_peo_ga(db: Session, mapping_data: schemas_hod.PEOGAMappingBulkCreate):
     mappings = [models.PEOGAMapping(**m.model_dump()) for m in mapping_data.mappings]
@@ -243,21 +305,21 @@ def create_ksa_tag(db: Session, ksa: schemas_hod.KSATagCreate):
 def get_ksa_tags(db: Session):
     return db.query(models.KSATag).all()
 
-def assign_faculty_to_subject(db: Session, faculty_id: int, subject_id: int, academic_year: str, semester: int):
+def assign_faculty_to_subject(db: Session, faculty_id: int, course_id: int, academic_year: str, semester: int):
     # Check if already assigned
-    existing = db.query(models.SubjectCoordinator).filter(
-        models.SubjectCoordinator.faculty_id == faculty_id,
-        models.SubjectCoordinator.subject_id == subject_id,
-        models.SubjectCoordinator.academic_year == academic_year,
-        models.SubjectCoordinator.semester == semester
+    existing = db.query(models.CourseCoordinator).filter(
+        models.CourseCoordinator.faculty_id == faculty_id,
+        models.CourseCoordinator.course_id == course_id,
+        models.CourseCoordinator.academic_year == academic_year,
+        models.CourseCoordinator.semester == semester
     ).first()
     
     if existing:
         return existing
         
-    assignment = models.SubjectCoordinator(
+    assignment = models.CourseCoordinator(
         faculty_id=faculty_id,
-        subject_id=subject_id,
+        course_id=course_id,
         academic_year=academic_year,
         semester=semester
     )

@@ -16,7 +16,7 @@ class Department(Base):
     __tablename__ = "Departments"
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
-    code = Column(String(20), unique=True, nullable=False)
+    code = Column(String(50), unique=True, nullable=False) # Maps to "department id" in requirements
 
 class AcademicTerm(Base):
     __tablename__ = "Academic_Terms"
@@ -50,6 +50,7 @@ class KSATag(Base):
 class Role(str, enum.Enum):
     ADMIN = "ADMIN"
     HOD = "HOD"
+    PROGRAM_HEAD = "PROGRAM_HEAD"
     FACULTY = "FACULTY"
     COORDINATOR = "COORDINATOR"
 
@@ -85,42 +86,62 @@ class Faculty(Base):
     designation = Column(String(100))
     joining_date = Column(Date)
     subject_undertaking = Column(String(150))
+    employee_id = Column(String(50), nullable=True)
+    speciality = Column(String(150), nullable=True)
 
-class DegreeType(str, enum.Enum):
-    UG_3Year = "UG_3Year"
+class BatchDuration(str, enum.Enum):
     UG_4YEAR = "UG_4YEAR"
     PG_2YEAR = "PG_2YEAR"
+    PGD_MPG_1YEAR = "PGD/MPG_1YEAR"
 
-class AcademicCourse(Base):
-    __tablename__ = "Academic_Courses"
+class Program(Base):
+    __tablename__ = "Programs"
     id = Column(Integer, primary_key=True, autoincrement=True)
+    program_id = Column(String(50), unique=True, nullable=False)
     name = Column(String(150), nullable=False)
-    degree_type = Column(SQLEnum(DegreeType), nullable=False)
+    batch_year = Column(String(50), nullable=False)
+    batch_duration = Column(SQLEnum(BatchDuration), nullable=False)
     department_id = Column(Integer, ForeignKey("Departments.id", ondelete="CASCADE"), nullable=False)
 
-class Subject(Base):
-    __tablename__ = "Subjects"
+class ProgramHead(Base):
+    __tablename__ = "Program_Heads"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    code = Column(String(20), unique=True, nullable=False)
-    name = Column(String(150), nullable=False)
-    credits = Column(Integer, nullable=False)
-    semester = Column(Integer, nullable=False)
-    department_id = Column(Integer, ForeignKey("Departments.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("Users_Info.id", ondelete="CASCADE"), nullable=False)
+    program_id = Column(Integer, ForeignKey("Programs.id", ondelete="CASCADE"), nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date)
 
-class SubjectCategory(str, enum.Enum):
+class CourseCategory(str, enum.Enum):
     MAJOR = "MAJOR"
     MINOR = "MINOR"
-    MDC = "MDC"
     AEC = "AEC"
     SEC = "SEC"
     VAC = "VAC"
-    INTERNSHIP = "INTERNSHIP"
-    PROJECT = "PROJECT"
+    GE = "GE"
+    INTERNSHIP_PROJECT = "INTERNSHIP PROJECT"
 
-class ElectiveBasket(Base):
-    __tablename__ = "Elective_Baskets"
+class CourseSubCategory(str, enum.Enum):
+    DISCIPLINE_SPECIFIC_CORE = "Discipline specific core"
+    DISCIPLINE_SPECIFIC_ELECTIVE = "Discipline specific elective"
+
+class Course(Base):
+    __tablename__ = "Courses"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    academic_course_id = Column(Integer, ForeignKey("Academic_Courses.id", ondelete="CASCADE"), nullable=False)
+    course_id = Column(String(50), unique=True, nullable=False)
+    name = Column(String(150), nullable=False)
+    credits = Column(Integer, nullable=False)
+    intended_semester = Column(Integer, nullable=False)
+    intended_year = Column(Integer, nullable=False)
+    program_id = Column(Integer, ForeignKey("Programs.id", ondelete="CASCADE"), nullable=False)
+    is_interdepartmental = Column(Boolean, default=False)
+    target_department_id = Column(Integer, ForeignKey("Departments.id", ondelete="SET NULL"), nullable=True)
+    course_category = Column(SQLEnum(CourseCategory), nullable=False)
+    sub_category = Column(SQLEnum(CourseSubCategory), nullable=True)
+
+class ElectiveCombination(Base):
+    __tablename__ = "Elective_Combinations"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    program_id = Column(Integer, ForeignKey("Programs.id", ondelete="CASCADE"), nullable=False)
     semester_number = Column(Integer, nullable=False)
     name = Column(String(100), nullable=False)
     required_selection_count = Column(Integer, nullable=False, default=1)
@@ -128,18 +149,18 @@ class ElectiveBasket(Base):
 class CourseCurriculum(Base):
     __tablename__ = "Course_Curriculum"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    academic_course_id = Column(Integer, ForeignKey("Academic_Courses.id", ondelete="CASCADE"), nullable=False)
-    subject_id = Column(Integer, ForeignKey("Subjects.id", ondelete="CASCADE"), nullable=False)
+    program_id = Column(Integer, ForeignKey("Programs.id", ondelete="CASCADE"), nullable=False)
+    course_id = Column(Integer, ForeignKey("Courses.id", ondelete="CASCADE"), nullable=False)
     semester_number = Column(Integer, nullable=False)
-    subject_category = Column(SQLEnum(SubjectCategory), nullable=False)
+    subject_category = Column(SQLEnum(CourseCategory), nullable=False)
     is_mandatory = Column(Boolean, default=True)
-    elective_basket_id = Column(Integer, ForeignKey("Elective_Baskets.id", ondelete="SET NULL"), nullable=True)
+    elective_combination_id = Column(Integer, ForeignKey("Elective_Combinations.id", ondelete="SET NULL"), nullable=True)
 
-class SubjectCoordinator(Base):
-    __tablename__ = "Subject_Coordinators"
+class CourseCoordinator(Base):
+    __tablename__ = "Course_Coordinators"
     id = Column(Integer, primary_key=True, autoincrement=True)
     faculty_id = Column(Integer, ForeignKey("Faculties.id", ondelete="CASCADE"), nullable=False)
-    subject_id = Column(Integer, ForeignKey("Subjects.id", ondelete="CASCADE"), nullable=False)
+    course_id = Column(Integer, ForeignKey("Courses.id", ondelete="CASCADE"), nullable=False)
     academic_year = Column(String(20), nullable=False)
     semester = Column(Integer, nullable=False)
 
@@ -165,7 +186,7 @@ class CO(Base):
     __tablename__ = "COs"
     id = Column(Integer, primary_key=True, autoincrement=True)
     statement = Column(Text, nullable=False)
-    subject_id = Column(Integer, ForeignKey("Subjects.id", ondelete="CASCADE"), nullable=False)
+    course_id = Column(Integer, ForeignKey("Courses.id", ondelete="CASCADE"), nullable=False)
     ksa_tag_id = Column(Integer, ForeignKey("KSA_Tags.id", ondelete="SET NULL"))
 
 class COPOMapping(Base):
@@ -195,7 +216,7 @@ class Assessment(Base):
     name = Column(String(100), nullable=False)
     max_marks = Column(Float, nullable=False)
     threshold_percentage = Column(Float, nullable=False, default=65.0)
-    subject_id = Column(Integer, ForeignKey("Subjects.id", ondelete="CASCADE"), nullable=False)
+    course_id = Column(Integer, ForeignKey("Courses.id", ondelete="CASCADE"), nullable=False)
 
 class AssessmentCOMapping(Base):
     __tablename__ = "Assessment_CO_Mappings"
@@ -219,14 +240,12 @@ class StudentDetail(Base):
     name = Column(String(100), nullable=False)
     semester = Column(Integer, nullable=False, default=1)
     department_id = Column(Integer, ForeignKey("Departments.id", ondelete="CASCADE"), nullable=False)
-    academic_course_id = Column(Integer, ForeignKey("Academic_Courses.id", ondelete="SET NULL"))
+    program_id = Column(Integer, ForeignKey("Programs.id", ondelete="SET NULL"))
 
 class StudentEnrollment(Base):
     __tablename__ = "Student_Enrollments"
     id = Column(Integer, primary_key=True, autoincrement=True)
     usn = Column(String(30), ForeignKey("Student_Details.usn", ondelete="CASCADE"), nullable=False)
-    subject_id = Column(Integer, ForeignKey("Subjects.id", ondelete="CASCADE"), nullable=False)
+    course_id = Column(Integer, ForeignKey("Courses.id", ondelete="CASCADE"), nullable=False)
     academic_term_id = Column(Integer, ForeignKey("Academic_Terms.id", ondelete="RESTRICT"), nullable=False)
     semester_number = Column(Integer, nullable=False)
-
-

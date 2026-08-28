@@ -18,10 +18,10 @@ def bulk_upload_students(payload: schemas_faculty.BulkStudentUploadRequest, db: 
         "details": result
     }
 
-@router.post("/subjects/{subject_id}/marks")
-def bulk_upload_marks(subject_id: int, payload: schemas_faculty.BulkMarksUploadRequest, db: Session = Depends(get_db), current_faculty: models.UserInfo = Depends(auth.get_current_faculty)):
-    faculty, assignment = crud_faculty.verify_faculty_assignment(db, current_faculty.id, subject_id)
-    result = crud_faculty.process_bulk_marks(db, subject_id, payload)
+@router.post("/courses/{course_id}/marks")
+def bulk_upload_marks(course_id: int, payload: schemas_faculty.BulkMarksUploadRequest, db: Session = Depends(get_db), current_faculty: models.UserInfo = Depends(auth.get_current_faculty)):
+    faculty, assignment = crud_faculty.verify_faculty_assignment(db, current_faculty.id, course_id)
+    result = crud_faculty.process_bulk_marks(db, course_id, payload)
     
     return {
         "msg": "IA marks uploaded successfully",

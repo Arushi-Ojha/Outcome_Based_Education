@@ -1,13 +1,16 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import date
-from main.models import Role, UserStatus, KSADomain, DegreeType, SubjectCategory, POType
+from main.models import Role, UserStatus, KSADomain, BatchDuration, CourseCategory, POType
 
 # ==========================================
 # AUTH & USER SCHEMAS
 # ==========================================
 
 class EmailRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetRequest(BaseModel):
     email: EmailStr
 
 class UserCreate(BaseModel):
@@ -53,12 +56,12 @@ class DepartmentResponse(DepartmentCreate):
     class Config:
         from_attributes = True
 
-class AcademicCourseCreate(BaseModel):
+class ProgramCreate(BaseModel):
     name: str
-    degree_type: DegreeType
+    batch_duration: BatchDuration
     department_id: int
 
-class AcademicCourseResponse(AcademicCourseCreate):
+class ProgramResponse(ProgramCreate):
     id: int
 
     class Config:
@@ -68,20 +71,20 @@ class AcademicCourseResponse(AcademicCourseCreate):
 # SUBJECT & OBE FRAMEWORK SCHEMAS
 # ==========================================
 
-class SubjectBase(BaseModel):
+class CourseBase(BaseModel):
     code: str
     name: str
     credits: int
     semester: int
 
-class SubjectCreate(BaseModel):
+class CourseCreate(BaseModel):
     code: str
     name: str
     credits: int
     semester: int
     department_id: int
 
-class SubjectResponse(SubjectCreate):
+class CourseResponse(CourseCreate):
     id: int
 
     class Config:
@@ -91,7 +94,7 @@ class AssessmentCreate(BaseModel):
     name: str
     max_marks: float
     threshold_percentage: float = 65.0
-    subject_id: int
+    course_id: int
 
 class IAMarkCreate(BaseModel):
     score: float
