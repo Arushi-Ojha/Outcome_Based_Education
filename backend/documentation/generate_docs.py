@@ -100,10 +100,31 @@ def create_api_docs():
     add_endpoint("POST", "/faculty/students/bulk-upload", "Registers and auto-enrolls students into subjects matching their semester and the Faculty's assignments.")
     add_endpoint("POST", "/faculty/subjects/{subject_id}/marks", "Bulk uploads IA marks for students against specific assessments.")
     
+    doc.add_heading('System Health & Integration', level=2)
+    add_endpoint("GET", "/", "API root greeting and verification endpoint.")
+    add_endpoint("GET", "/api/health", "System health check returning operational status for frontend and monitoring.")
+
+    # 4. Frontend & CORS Integration
+    doc.add_heading('4. Frontend & CORS Integration', level=1)
+    frontend_text = (
+        "The React JavaScript frontend is located in the 'frontend' directory, built with Vite and linted using Oxlint.\n\n"
+        "1. CORS Architecture:\n"
+        "- Configured via FastAPI CORSMiddleware in 'backend/main/main.py'.\n"
+        "- Whitelists dev origins ('http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000').\n"
+        "- Uses regex '^https?://(localhost|127\\.0\\.0\\.1)(:\\d+)?$' to authorize dynamic localhost ports.\n"
+        "- Supports credentials, all HTTP methods, and custom Authorization/Content-Type headers.\n\n"
+        "2. Frontend Client & Proxy:\n"
+        "- Vite Dev Server proxy maps '/api' to 'http://127.0.0.1:8000'.\n"
+        "- Resilient API helper ('frontend/src/api/client.js') handles health checks and connection validation.\n"
+        "- Linted with Oxlint ('npm run lint') with zero errors and zero warnings."
+    )
+    doc.add_paragraph(frontend_text)
+
     # Save Document
     file_path = os.path.join(os.getcwd(), 'OBE_API_Documentation.docx')
     doc.save(file_path)
     print(f"Documentation generated successfully at: {file_path}")
+
 
 if __name__ == "__main__":
     create_api_docs()
