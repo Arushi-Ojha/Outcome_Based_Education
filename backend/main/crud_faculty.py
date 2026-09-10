@@ -61,7 +61,7 @@ def process_bulk_students(db: Session, faculty_user_id: int, payload: schemas_fa
         
     # Auto-enrollment logic
     subjects = db.query(models.Course).filter(models.Course.id.in_(assigned_course_ids)).all()
-    subject_map = {s.id: s.semester for s in subjects} # Maps course_id -> semester
+    subject_map = {s.id: s.intended_semester for s in subjects} # Maps course_id -> semester
     
     # Group students by semester
     semester_students = {}

@@ -143,12 +143,3 @@ def map_po_peo(payload: schemas_hod.POPEOMappingBulkCreate, db: Session = Depend
     count = crud_hod.bulk_map_po_peo(db, payload)
     return {"msg": f"Successfully created {count} PO-PEO mappings"}
 
-
-
-@router.post("/framework/ksa-tags", response_model=schemas_hod.KSATagResponse)
-def create_ksa_tag(ksa: schemas_hod.KSATagCreate, db: Session = Depends(get_db), current_hod: models.UserInfo = Depends(auth.get_current_hod)):
-    return crud_hod.create_ksa_tag(db, ksa)
-
-@router.get("/framework/ksa-tags", response_model=List[schemas_hod.KSATagResponse])
-def get_ksa_tags(db: Session = Depends(get_db), current_hod: models.UserInfo = Depends(auth.get_current_hod)):
-    return crud_hod.get_ksa_tags(db)

@@ -106,19 +106,6 @@ class POResponse(POBase):
     class Config:
         from_attributes = True
 
-class KSATagBase(BaseModel):
-    domain: KSADomain
-    tag_level: str
-    description: Optional[str] = None
-
-class KSATagCreate(KSATagBase):
-    pass
-
-class KSATagResponse(KSATagBase):
-    id: int
-    class Config:
-        from_attributes = True
-
 # Course Outcomes (COs)
 class COBase(BaseModel):
     statement: str

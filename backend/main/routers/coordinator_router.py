@@ -8,7 +8,7 @@ router = APIRouter(prefix="/coordinator", tags=["Coordinator Domain"])
 
 from typing import List
 from main import schemas_hod
-from main import crud_faculty
+from main import crud_faculty, crud_hod
 from main import schemas_faculty
 
 @router.post("/courses/{course_id}/faculty-upload")
